@@ -9,7 +9,7 @@ from scipy.optimize import fsolve
 import sympy as sp
 import pandas as pd 
 import warnings
-%run Antoine_db_V1.py
+%run Antoine_Coefficent_database.ipynb #Juypter notebook file of the database
 
 T = (390) #kelvin
 P = (5/1.013) # atm
@@ -37,18 +37,7 @@ mol_fraction_d = mol_of_d / total_mol
 mol_fraction_e = mol_of_e / total_mol
 mol_fraction_f = mol_of_f / total_mol
 
-print('mol fraction of component A')
-print(mol_fraction_a)
-print('mol fraction of component B')
-print(mol_fraction_b)
-print('mol fraction of component C')
-print(mol_fraction_c)
-print('mol fraction of component D')
-print(mol_fraction_d)
-print('mol fraction of component E')
-print(mol_fraction_e)
-print('mol fraction of component F')
-print(mol_fraction_f)
+
 #obtaining saturation pressure for components at given Temperature for each component 
 psat_a_atm = get_Psat_atm(component_a, T)
 psat_b_atm = get_Psat_atm(component_b, T)
@@ -58,18 +47,6 @@ psat_e_atm = get_Psat_atm(component_e, T)
 psat_f_atm = get_Psat_atm(component_f, T)
 
 
-print('Saturated pressure of A')
-print(psat_a_atm)
-print('Saturated pressure of B')
-print(psat_b_atm)
-print('Saturated pressure of C')
-print(psat_c_atm)
-print('Saturated pressure of D')
-print(psat_d_atm)
-print('Saturated pressure of E')
-print(psat_e_atm)
-print('Saturated pressure of F')
-print(psat_f_atm)
 
 # find K values for each component 
 K_a = psat_a_atm / P
@@ -78,13 +55,6 @@ K_c = psat_c_atm / P
 K_d = psat_d_atm / P
 K_e = psat_e_atm / P
 K_f = psat_f_atm / P
-
-print('K value of A')
-print(K_a)
-print('K value of B')
-print(K_b)
-print('K value of C')
-print(K_c)
 
 
 
@@ -110,18 +80,7 @@ if 0 <= L_solution <= 1:
     X_f = mol_fraction_f / (((1 - L_solution) * K_f ) + L_solution)
     sum_x = X_a + X_b + X_c + X_d + X_e + X_f
     if abs(sum_x - 1) < 0.002:
-        print('liquid mol fraction of component a')
-        print(X_a)
-        print('liquid mol fraction of component b')
-        print(X_b)
-        print('liquid mol fraction of component c')
-        print(X_c)
-        print('liquid mol fraction of component d')
-        print(X_d)
-        print('liquid mol fraction of component e')
-        print(X_e)
-        print('liquid mol fraction of component f')
-        print(X_f)
+        print('2 phase is present')
     else:
         print('no 2 phase')
     Y_a = X_a * K_a 
@@ -138,19 +97,6 @@ if 0 <= L_solution <= 1:
     print('fractional vapour flowrate')
     print(V_solution)
     
-    print('vapour mol fraction of component a')
-    print(Y_a)
-    print('vapour mol fraction of component b')
-    print(Y_b)
-    print('vapour mol fraction of component c')
-    print(Y_c)
-    print('vapour mol fraction of component d')
-    print(Y_d)
-    print('vapour mol fraction of component e')
-    print(Y_e)
-    print('vapour mol fraction of component f')
-    print(Y_f)
-    
     print('Sum of X')
     print(sum_x)
     
@@ -159,3 +105,13 @@ if 0 <= L_solution <= 1:
 else:
     print('L solution out of bounds', L_solution)
     print("system may be single phase")
+
+results = pd.DataFrame({
+    "component": [component_a , component_b, component_c, component_d, component_e, component_f],
+    "mol fraction": [mol_fraction_a, mol_fraction_b, mol_fraction_c, mol_fraction_d, mol_fraction_e, mol_fraction_f],
+    "Psat (atm)": [psat_a_atm, psat_b_atm, psat_c_atm, psat_d_atm, psat_e_atm, psat_f_atm],
+    "K value": [K_a, K_b, K_c, K_d, K_e, K_f],
+    "x (Liquid Frac)": [X_a, X_b, X_c, X_d, X_e, X_f],
+    "y (Vapor Frac)": [Y_a, Y_b, Y_c, Y_d, Y_e, Y_f]
+})
+print(results)
