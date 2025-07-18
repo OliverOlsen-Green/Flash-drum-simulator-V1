@@ -70,7 +70,7 @@ def get_Psat_atm(component, T):
             print(f"  {r['Tmin']} K to {r['Tmax']} K")
         
         # cse the closest range (this is a fallback solution)
-        if T_K < component_data["Tmin"].min():
+        if T < component_data["Tmin"].min():
             row = component_data[component_data["Tmin"] == component_data["Tmin"].min()]
             print(f"Using coefficients for the lowest available range: {row['Tmin'].values[0]} K to {row['Tmax'].values[0]} K")
         else:
