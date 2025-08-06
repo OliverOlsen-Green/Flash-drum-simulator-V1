@@ -281,8 +281,8 @@ def calculate_AA_i(a_list, alpha_list_liquid, a_mix_liquid, x):
     for i in range(n):
         sum_aa_ij = 0.0
         for j in range(n):
-            a_i_alpha = a_list[i] * alpha_list[i]
-            a_j_alpha = a_list[j] * alpha_list[j]
+            a_i_alpha = a_list[i] * alpha_list_liquid[i]
+            a_j_alpha = a_list[j] * alpha_list_liquid[j]
             a_alpha_ij = math.sqrt(a_i_alpha * a_j_alpha)# kij = 0
             sum_aa_ij += x[j] * a_alpha_ij
         AA_i = ((2 ) / a_mix_liquid) * sum_aa_ij
