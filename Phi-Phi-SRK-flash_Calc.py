@@ -26,7 +26,6 @@ supercritical_data = np.array([
     [512.6, 80.9, 0.556],
     [547.8, 43.0, 0.592]
 ])
-#assume ideal mixing unless Kij parameters are known
 kij_matrix = [
     [0.0, 0.0, 0.0],   # iso-propanol row
     [0.0, 0.0, 0.0],   # methanol row
@@ -144,84 +143,59 @@ for i , data in enumerate(supercritical_data):
     accentric_factor = data[2]
     
     SRK_eq, A, B, a, b, alpha = SRK(Z, Tc, Pc, accentric_factor)
-    equation = sp.N(SRK_eq)  # evaluate the equation numerically
-    Z_solution = sp.solve(equation, Z)
-    real_Z = [z.evalf().as_real_imag()[0] for z in Z_solution if abs(z.as_real_imag()[1]) < 1e-6]
-    if not real_Z or len(real_Z ) < 2:
-        continue
-
-    Z_Liq = min(real_Z)
-    Z_vap = max(real_Z)
-
-    for phase, Z_actual in [("liquid", Z_Liq), ("Vapour", Z_vap)]:
-        z = Z_actual
-        term1 = z - B
-        term2 = (z + B) / z
-  
-            
-        ln_fugacity = (z - 1 - math.log(term1) - ((A / B) * math.log(term2)))
-        fugacity = math.exp(ln_fugacity)
-        V = z * R * T / P
-        phase = "Liquid" if z == min(real_Z) else "Vapor"
-        results.append({
-            "Component": component_names[i],
-            "Phase": phase,
-            "a (bar·cm⁶/mol²)": round(a, 4),
-            "b (cm³/mol)": round(b, 4),
-            "A": round(A,4),
-            "B": round(B,4),
-            "Z": round(z, 6),
-            "Molar Volume (cm³/mol)": round(V, 4),
-            "alpha": round(alpha, 4),
-            "Fugacity Coeff.": round(fugacity, 4)
-        })
+    results.append({
+        "Component": component_names[i],
+        "a (bar·cm⁶/mol²)": round(a, 4),
+        "b (cm³/mol)": round(b, 4),
+        "A": round(A,4),
+        "B": round(B,4),
+        "alpha": round(alpha, 4),
+    })
 
 df = pd.DataFrame(results)
 print(df.to_string(index=False))
 
-a_list = [row["a (bar·cm⁶/mol²)"] for row in results if row["Phase"] == "Liquid"]
-b_list = [row["b (cm³/mol)"] for row in results if row["Phase"] == "Liquid"]
+a_list = df["a (bar·cm⁶/mol²)"].tolist()
+b_list = df["b (cm³/mol)"].tolist()
 x = [row["Liquid (x)"] for row in results_flash]
 y = [row["Vapor (y)"] for row in results_flash]
-alpha_list_liquid = [row["alpha"] for row in results if row ["Phase"] == "Liquid"]
+alpha_list = df[("alpha")].tolist()
 
 # a and b for the liquid phase 
-def SRK_mixture_parameters_liquid(a_list, b_list, x, alpha_list_liquid):
+def SRK_mixture_parameters_liquid(a_list, b_list, x, alpha_list):
     a_mix_liquid = 0.0
     b_mix_liquid = 0.0  
     
     for i in range(len(x)):
         b_mix_liquid += x[i] * b_list[i]  
         for j in range(len(x)):
-            a_i = a_list[i] * alpha_list_liquid[i]  # ideal mixing assumed (kij = 0 )
-            a_j = a_list[j] * alpha_list_liquid[j]  
+            a_i = a_list[i] * alpha_list[i]  # ideal mixing assumed (kij = 0 )
+            a_j = a_list[j] * alpha_list[j]  
             kij = kij_matrix[i][j]
             a_mix_liquid += x[i] * x[j] * math.sqrt(a_i * a_j) * (1 - kij)
             
     return a_mix_liquid, b_mix_liquid
 
-a_list_vapour = [row["a (bar·cm⁶/mol²)"] for row in results if row["Phase"] == "Vapor"]
-b_list_vapour = [row["b (cm³/mol)"] for row in results if row["Phase"] == "Vapor"]
-alpha_list_vapour = [row["alpha"] for row in results if row ["Phase"] == "Vapor"]
+
 # a and b of the mixture for the vapour phase
-def SRK_mixture_parameters_vapour(a_list_vapour, b_list_vapour, y, alpha_list_vapour):
+def SRK_mixture_parameters_vapour(a_list, b_list, y, alpha_list):
     a_mix_vapour = 0.0
     b_mix_vapour = 0.0  
     
     for i in range(len(y)):
-        b_mix_vapour += y[i] * b_list_vapour[i] 
+        b_mix_vapour += y[i] * b_list[i] 
         for j in range(len(y)):
-            a_i = a_list_vapour[i] * alpha_list_vapour[i]  
-            a_j = a_list_vapour[j] * alpha_list_vapour[j]  
+            a_i = a_list[i] * alpha_list[i]  
+            a_j = a_list[j] * alpha_list[j]  
             kij = kij_matrix[i][j]
             a_mix_vapour += y[i] * y[j] * math.sqrt(a_i * a_j) * (1 - kij)
             
     return a_mix_vapour, b_mix_vapour
-a_mix_liquid, b_mix_liquid = SRK_mixture_parameters_liquid(a_list, b_list, x, alpha_list_liquid)
+a_mix_liquid, b_mix_liquid = SRK_mixture_parameters_liquid(a_list, b_list, x, alpha_list)
 print("\nMixture values using van der Waals mixing rule (kij = 0):")
 print(f"Mixed a liquid (bar·cm⁶/mol²): {round(a_mix_liquid, 4)}")
 print(f"Mixed b liquid (cm³/mol): {round(b_mix_liquid, 4)}")
-a_mix_vapour, b_mix_vapour = SRK_mixture_parameters_vapour(a_list_vapour, b_list_vapour, y, alpha_list_vapour)
+a_mix_vapour, b_mix_vapour = SRK_mixture_parameters_vapour(a_list, b_list, y, alpha_list)
 print("\nMixture values using van der Waals mixing rule (kij = 0):")
 print(f"Mixed a vapour (bar·cm⁶/mol²): {round(a_mix_vapour, 4)}")
 print(f"Mixed b vapour (cm³/mol): {round(b_mix_vapour, 4)}")
@@ -270,19 +244,19 @@ print(B_liquid)
 print(B_vapour)
 
 print("a_list (liquid):", a_list)
-print("a_list_vapour:", a_list_vapour)
+print("a_list_vapour:", a_list)
 print("x:", x)
 print("y:", y)
 # AAi for the liquid phase
-def calculate_AA_i(a_list, alpha_list_liquid, a_mix_liquid, x):
+def calculate_AA_i(a_list, alpha_list, a_mix_liquid, x):
     n = len(a_list)
     AA_i_list = []
 
     for i in range(n):
         sum_aa_ij = 0.0
         for j in range(n):
-            a_i_alpha = a_list[i] * alpha_list_liquid[i]
-            a_j_alpha = a_list[j] * alpha_list_liquid[j]
+            a_i_alpha = a_list[i] * alpha_list[i]
+            a_j_alpha = a_list[j] * alpha_list[j]
             a_alpha_ij = math.sqrt(a_i_alpha * a_j_alpha)# kij = 0
             sum_aa_ij += x[j] * a_alpha_ij
         AA_i = ((2 ) / a_mix_liquid) * sum_aa_ij
@@ -291,15 +265,15 @@ def calculate_AA_i(a_list, alpha_list_liquid, a_mix_liquid, x):
     return AA_i_list
 
 # for the vapour phase
-def calculate_AA_i_vapour(a_list_vapour, alpha_list_vapour, y, a_mix_vapour):
-    n = len(a_list_vapour)
+def calculate_AA_i_vapour(a_list, alpha_list, y, a_mix_vapour):
+    n = len(a_list)
     AA_i_vapour_list = []
 
     for i in range(n):
         sum_aa_ij_vapour = 0.0
         for j in range(n):
-            a_i_alpha_vapour = a_list_vapour[i] * alpha_list_vapour[i]
-            a_j_alpha_vapour = a_list_vapour[j] * alpha_list_vapour[j]
+            a_i_alpha_vapour = a_list[i] * alpha_list[i]
+            a_j_alpha_vapour = a_list[j] * alpha_list[j]
             a_alpha_ij_vapour = math.sqrt(a_i_alpha_vapour * a_j_alpha_vapour)# kij = 0
             sum_aa_ij_vapour += y[j] * a_alpha_ij_vapour
         AA_i_vapour = ((2 ) / a_mix_vapour) * sum_aa_ij_vapour
@@ -307,8 +281,8 @@ def calculate_AA_i_vapour(a_list_vapour, alpha_list_vapour, y, a_mix_vapour):
 
     return AA_i_vapour_list
 
-AA_i_liquid = calculate_AA_i(a_list, alpha_list_liquid, a_mix_liquid, x)
-AA_i_vapour = calculate_AA_i_vapour(a_list_vapour, alpha_list_vapour, y, a_mix_vapour)
+AA_i_liquid = calculate_AA_i(a_list, alpha_list, a_mix_liquid, x)
+AA_i_vapour = calculate_AA_i_vapour(a_list, alpha_list, y, a_mix_vapour)
 print(AA_i_liquid)
 print(AA_i_vapour)
 
@@ -346,8 +320,8 @@ phi_l = fugacity_srk(
 
 # fugacity for vapor phase
 phi_v = fugacity_srk(
-    b_list=b_list_vapour,
-    a_list=a_list_vapour,
+    b_list=b_list,
+    a_list=a_list,
     AA_i_list=AA_i_vapour,
     Z=Z_v,
     A=A_vapour,
@@ -361,7 +335,6 @@ print(phi_l)
 print(phi_v)
 # Print K values
 print("\nK values:")
-component_names = ['2-Propanol', 'Methanol', 'i-Butanol']
 for i, k_val in enumerate(K):
     print(f"{component_names[i]}: {k_val:.6f}")
 
@@ -386,6 +359,9 @@ for iteration in range(MAX_ITER):
     # compute x and y with new L
     x = [z[i] / (((1 - L_solution)* K_val[i]) + L_solution ) for i in range(len(z))]
     y = [x[i] * K_val[i] for i in range(len(z))]
+    sy = sum(y)
+    if sy > 0:
+        y = [yi/sy for yi in y]
 
     # pure-component parameters from SRK
     a_list = []
