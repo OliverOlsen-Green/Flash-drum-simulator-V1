@@ -95,7 +95,7 @@ if ysum > 0.0:
 
 # Prepare results for display
 results_flash = []
-for i, comp in enumerate(component_names[:6]):  # Ensure we only use the first 3 components
+for i, comp in enumerate(component_names[:6]):
     results_flash.append({
         "Component": comp,
         "Feed (z)": mol_fraction[i],
