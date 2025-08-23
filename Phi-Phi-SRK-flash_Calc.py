@@ -334,8 +334,7 @@ for iteration in range(MAX_ITER):
     def Rachford_Rice(L):
         x_values = [z[i] / (((1 - L) * K_val[i]) + L) for i in range(len(z))]
         return sum(x_values) - 1
-        
-
+    L_initial = L_solution
     L_solution = fsolve(Rachford_Rice, L_initial_estimate)[0]
 
     # compute x and y with new L
