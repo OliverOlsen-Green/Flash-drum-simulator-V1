@@ -56,55 +56,37 @@ for i, data in enumerate(supercritical_data):
 dk = pd.DataFrame(K_values_display)
 print(dk)
 
-mol_fraction = np.array([1/3, 1/3, 1/3])
-mol_fraction_a = mol_fraction[0]
-mol_fraction_b = mol_fraction[1]
-mol_fraction_c = mol_fraction[2]
-K_values = [row["K values"] for row in K_values_display]
-
-K_a = K_values[0]  
-K_b = K_values[1]
-K_c = K_values[2]
-
-# Define Rachford-Rice function
-def Rachford_Rice(L):
-    for i, data in enumerate(mol_fraction):
-       
-        pass  
+# Rachford–Rice solver
+def rachford_rice(L):
     
-    # The actual calculation logic
-    x_a = mol_fraction_a / (((1 - L) * K_a) + L)
-    x_b = mol_fraction_b / (((1 - L) * K_b) + L)
-    x_c = mol_fraction_c / (((1 - L) * K_c) + L)
-    sum_x = x_a + x_b + x_c
-    return sum_x - 1  # The sum should equal 1
+    eps = 1e-12
+    L = float(np.clip(L, eps, 1.0 - eps))
+    denom = (1.0 - L) * K + L
+    return np.sum(z / denom) - 1.0
+X_1 = np.sum(z / K)            
+V_1 = np.sum(z * K)  
 
-# solve rachford rice for the liquid fractional flowrate
-L_initial_estimate = 0.5
-L_solution = fsolve(Rachford_Rice, L_initial_estimate)[0]
 
-# check if the solution is valid
-if 0 <= L_solution <= 1:
-    x_a = mol_fraction_a / (((1 - L_solution) * K_a) + L_solution)
-    x_b = mol_fraction_b / (((1 - L_solution) * K_b) + L_solution)
-    x_c = mol_fraction_c / (((1 - L_solution) * K_c) + L_solution)
-    sum_x = x_a + x_b + x_c
-    
-    if abs(sum_x - 1) < 0.002:
-        print("2 phase is present")
-    else:
-        print("No 2 phase")
+g0  = X_1 - 1.0               
+g1 = rachford_rice(1.0 - 1e-12)   
+
+if g0 * g1 < 0.0:
+    L_solution = brentq(rachford_rice, 1e-12, 1.0 - 1e-12,
+                        xtol=1e-12, rtol=1e-10, maxiter=200)
 else:
-    print("Solution out of bounds, no valid two-phase region")
+    # decide phase properly using both sums
+    if (X_1 < 1.0) and (V_1 < 1.0):
+        L_solution = 1.0        # all liquid
+    elif (X_1 > 1.0) and (V_1 > 1.0):
+        L_solution = 0.0        # all vapor
 
-# calculate vapour compositions
-y_a = x_a * K_a
-y_b = x_b * K_b
-y_c = x_c * K_c
 
-
-x = [x_a, x_b, x_c]
-y = [y_a, y_b, y_c]
+den = (1.0 - L_solution) * K + L_solution
+x = z / den
+y = K * x
+ysum = y.sum()
+if ysum > 0.0:
+    y = y / ysum  
 
 
 results_flash = []
