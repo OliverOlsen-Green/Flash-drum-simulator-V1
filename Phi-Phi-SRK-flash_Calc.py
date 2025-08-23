@@ -56,6 +56,9 @@ for i, data in enumerate(supercritical_data):
 dk = pd.DataFrame(K_values_display)
 print(dk)
 
+z = np.array(mol_fraction, dtype=float)
+K = np.array([row["K values"] for row in K_values_display], dtype=float)
+
 # Rachford–Rice solver
 def rachford_rice(L):
     
@@ -94,7 +97,7 @@ for i, comp in enumerate(component_names[:3]):  # Ensure we only use the first 3
     results_flash.append({
         "Component": comp,
         "Feed (z)": mol_fraction[i],
-        "K-value": K_values[i],
+        "K-value": K[i],
         "Liquid (x)": x[i],
         "Vapor (y)": y[i]
     })
@@ -334,7 +337,7 @@ for iteration in range(MAX_ITER):
     def Rachford_Rice(L):
         x_values = [z[i] / (((1 - L) * K_val[i]) + L) for i in range(len(z))]
         return sum(x_values) - 1
-    L_initial = L_solution
+    L_initial_estimate = L_solution
     L_solution = fsolve(Rachford_Rice, L_initial_estimate)[0]
 
     # compute x and y with new L
