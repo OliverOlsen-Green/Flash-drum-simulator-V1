@@ -93,7 +93,7 @@ if ysum > 0.0:
 
 
 results_flash = []
-for i, comp in enumerate(component_names[:3]):  # Ensure we only use the first 3 components
+for i, comp in enumerate(component_names[:3]): 
     results_flash.append({
         "Component": comp,
         "Feed (z)": mol_fraction[i],
@@ -102,7 +102,7 @@ for i, comp in enumerate(component_names[:3]):  # Ensure we only use the first 3
         "Vapor (y)": y[i]
     })
 
-# Display results
+# display results of the flash calculation 
 dt = pd.DataFrame(results_flash)
 print("\nFlash calculation results:")
 print(dt)
@@ -154,7 +154,7 @@ def SRK_mixture_parameters_liquid(a_list, b_list, x, alpha_list):
     for i in range(len(x)):
         b_mix_liquid += x[i] * b_list[i]  
         for j in range(len(x)):
-            a_i = a_list[i] * alpha_list[i]  # ideal mixing assumed (kij = 0 )
+            a_i = a_list[i] * alpha_list[i] 
             a_j = a_list[j] * alpha_list[j]  
             kij = kij_matrix[i][j]
             a_mix_liquid += x[i] * x[j] * math.sqrt(a_i * a_j) * (1 - kij)
@@ -187,6 +187,7 @@ print(f"Mixed b vapour (cm³/mol): {round(b_mix_vapour, 4)}")
 
 Z_val = sp.Symbol('Z_val')
 Z_Val = sp.Symbol('Z_Val')
+#SRK EOS for the liquid phase mixture
 def SRK_Mixture_liquid(Z_val):
     A_liquid = (a_mix_liquid * P)/((R * T) ** 2) 
     B_liquid = (b_mix_liquid * P)/(R * T)
@@ -314,7 +315,7 @@ phi_v = fugacity_srk(
     b_mix=b_mix_vapour,
     phase_label="vapour"
 )
-# calculate K values (K = phi_liquid / phi_vapor)
+# calculate K values 
 K = [phi_l[i] / phi_v[i] for i in range(len(phi_l))]
 print(phi_l)
 print(phi_v)
@@ -324,8 +325,8 @@ for i, k_val in enumerate(K):
     print(f"{component_names[i]}: {k_val:.6f}")
 
 
-K_val = K.copy()                # Initial K-values
-z = mol_fraction.copy()        # Feed mole fractions    
+K_val = K.copy()                
+z = mol_fraction.copy()        # feed mole fractions    
 
 for iteration in range(MAX_ITER):
     # save previous K-values for convergence check
@@ -333,7 +334,7 @@ for iteration in range(MAX_ITER):
     Z_L = sp.Symbol('Z_L')
     Z_V = sp.Symbol('Z_V')
 
-    # Rachford-Rice with current K-values
+    # Rachford-Rice with phi-phi K-values
     def Rachford_Rice(L):
         x_values = [z[i] / (((1 - L) * K_val[i]) + L) for i in range(len(z))]
         return sum(x_values) - 1
