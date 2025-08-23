@@ -156,12 +156,12 @@ def PR_mixture_parameters_liquid(a_list, b_list, x, alpha_list):
     b_mix_liquid = 0.0  # Initialize outside the loops
     
     for i in range(len(x)):
-        b_mix_liquid += x[i] * b_list[i]  # Move b calculation outside inner loop
+        b_mix_liquid += x[i] * b_list[i] 
         for j in range(len(x)):
-            a_i = a_list[i] * alpha_list[i]  # This is (a^α)_i
-            a_j = a_list[j] * alpha_list[j]  # This is (a^α)_j
+            a_i = a_list[i] * alpha_list[i] 
+            a_j = a_list[j] * alpha_list[j]  
             kij = kij_matrix[i][j]
-            # For kij = 0, the denominator (1-kij) = 1
+           
             a_mix_liquid += x[i] * x[j] * math.sqrt(a_i * a_j) * (1 - kij)
             
     return a_mix_liquid, b_mix_liquid
@@ -170,12 +170,12 @@ def PR_mixture_parameters_vapour(a_list, b_list, y, alpha_list):
     b_mix_vapour = 0.0  # Initialize outside the loops
     
     for i in range(len(y)):
-        b_mix_vapour += y[i] * b_list[i]  # Move b calculation outside inner loop
+        b_mix_vapour += y[i] * b_list[i]  
         for j in range(len(y)):
-            a_i = a_list[i] * alpha_list[i]  # This is (a^α)_i
-            a_j = a_list[j] * alpha_list[j]  # This is (a^α)_j
+            a_i = a_list[i] * alpha_list[i]  
+            a_j = a_list[j] * alpha_list[j]  
             kij = kij_matrix[i][j]
-            # For kij = 0, the denominator (1-kij) = 1
+            
             a_mix_vapour += y[i] * y[j] * math.sqrt(a_i * a_j) * (1 - kij)
             
     return a_mix_vapour, b_mix_vapour
@@ -275,7 +275,7 @@ def fugacity_PR_EOS(a_list, b_list, AA_i_list, Z, A, B, b_mix, phase_label):
         
         # make sure both numerator and denominator are positive
         if numerator <= 0 or denominator <= 0:
-            # Handle the case where log arguments would be negative
+            
             term3 = 0  # Or some appropriate default value
         else:
             term3 = ((A / (2 * sqrt2 * B)) * (AA_i - (B_i / b_mix)) * 
