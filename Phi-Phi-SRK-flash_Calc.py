@@ -325,102 +325,88 @@ for i, k_val in enumerate(K):
     print(f"{component_names[i]}: {k_val:.6f}")
 
 
-K_val = K.copy()                
-z = mol_fraction.copy()        # feed mole fractions    
+K_val = np.array(K, dtype=float)   
+z = np.array(mol_fraction, dtype=float)
 
 for iteration in range(MAX_ITER):
-    # save previous K-values for convergence check
     K_old = K_val.copy()
     Z_L = sp.Symbol('Z_L')
     Z_V = sp.Symbol('Z_V')
 
-    # Rachford-Rice with phi-phi K-values
-    def Rachford_Rice(L):
-        x_values = [z[i] / (((1 - L) * K_val[i]) + L) for i in range(len(z))]
-        return sum(x_values) - 1
-    L_initial_estimate = L_solution
-    L_solution = fsolve(Rachford_Rice, L_initial_estimate)[0]
+   
+    K = np.asarray(K_val, dtype=float)       
+    z = np.asarray(mol_fraction, dtype=float)
+    def rachford_rice(L):
+        eps = 1e-12
+        L = float(np.clip(L, eps, 1.0 - eps))
+        denom = (1.0 - L) * K + L
+        return np.sum(z / denom) - 1.0
+        X_1 = np.sum(z / K)
+        V_1 = np.sum(z * K)
+        g0 = X_1 - 1.0
+        g1 = rachford_rice(1.0 - 1e-12)
+        if g0 * g1 < 0.0:
+            L_solution = brentq(rachford_rice, 1e-12, 1.0 - 1e-12,
+                                xtol=1e-12, rtol=1e-10, maxiter=200)
+        else:
+            # decide phase properly using both sums
+            if (X_1 < 1.0) and (V_1 < 1.0):
+                L_solution = 1.0        # all liquid
+            elif (X_1 > 1.0) and (V_1 > 1.0):
+                L_solution = 0.0        # all vapor
+            else:
+                # fallback 
+                L_solution = L_solution if 'L_solution' in locals() else 0.5
+            
+            den = (1.0 - L_solution) * K + L_solution 
+            x = z / den
+            y = K * x
+            ysum = y.sum()
+            if ysum > 0.0:
+                y = y / ysum  
 
-    # compute x and y with new L
-    x = [z[i] / (((1 - L_solution)* K_val[i]) + L_solution ) for i in range(len(z))]
-    y = [x[i] * K_val[i] for i in range(len(z))]
-    sy = sum(y)
-    if sy > 0:
-        y = [yi/sy for yi in y]
-
-    # pure-component parameters from SRK
-    a_list = []
-    b_list = []
-    alpha_list = []
-
+    a_list, b_list, alpha_list = [], [], []
     for i in range(len(supercritical_data)):
         Tc, Pc, omega = supercritical_data[i]
-        SRK_eq, A, B, a, b, alpha = SRK(Z, Tc, Pc, omega)
-        a_list.append(a)
-        b_list.append(b)
-        alpha_list.append(alpha)
+        _, _, _, a, b, alpha = SRK(Z, Tc, Pc, omega)
+        a_list.append(a); b_list.append(b); alpha_list.append(alpha)
 
-    # mixture parameters 
+    
     a_mix_l, b_mix_l = SRK_mixture_parameters_liquid(a_list, b_list, x, alpha_list)
     a_mix_v, b_mix_v = SRK_mixture_parameters_vapour(a_list, b_list, y, alpha_list)
 
-    # solve for Z 
-    A_l = a_mix_l * P / (R**2 * T**2)
-    B_l = b_mix_l * P / (R * T)
+    
+    A_l = a_mix_l * P / (R**2 * T**2);  B_l = b_mix_l * P / (R * T)
     SRK_eq_liq = (Z_L**3) - (Z_L**2) + ((A_l - B_l - (B_l**2)) * Z_L) - (A_l * B_l)
-    eq_liq = sp.N(SRK_eq_liq)
-    z_l_roots = sp.solve(eq_liq, Z_L)
-    z_l = min(
-        z.as_real_imag()[0] for z in z_l_roots
-        if abs (z.as_real_imag()[1]) < 1e-6
-    )
+    z_l = min(zr.as_real_imag()[0] for zr in sp.solve(sp.N(SRK_eq_liq), Z_L)
+              if abs(zr.as_real_imag()[1]) < 1e-6)
 
-    A_v = a_mix_v * P / (R**2 * T**2)
-    B_v = b_mix_v * P / (R * T)
+    A_v = a_mix_v * P / (R**2 * T**2);  B_v = b_mix_v * P / (R * T)
     SRK_eq_vap = (Z_V**3) - (Z_V**2) + ((A_v - B_v - (B_v**2)) * Z_V) - (A_v * B_v)
-    eq_vap = sp.N(SRK_eq_vap)
-    z_v_roots = sp.solve(eq_vap, Z_V)
-    z_v = max(
-        z.as_real_imag()[0] for z in z_v_roots
-        if abs (z.as_real_imag()[1]) < 1e-6
-    )
-    print("compressibility factor of the liquid")
-    print(z_l)
-    print("compressibility factor of the vapour")
-    print(z_v)
+    z_v = max(zr.as_real_imag()[0] for zr in sp.solve(sp.N(SRK_eq_vap), Z_V)
+              if abs(zr.as_real_imag()[1]) < 1e-6)
 
-
-    # AA_i values
+    
     AA_i_L = calculate_AA_i(a_list, alpha_list, a_mix_l, x)
     AA_i_V = calculate_AA_i_vapour(a_list, alpha_list, y, a_mix_v)
-
-    # fugacity coefficients
     phi_l = fugacity_srk(b_list, a_list, AA_i_L, z_l, A_l, B_l, b_mix_l, "liquid")
     phi_v = fugacity_srk(b_list, a_list, AA_i_V, z_v, A_v, B_v, b_mix_v, "vapour")
 
-    #update K values 
-    new_K_values = [phi_l[i] / phi_v[i] for i in range(len(phi_l))]
-    max_diff = max(abs((new_K_values[i] - K_old[i])/K_old[i]) for i in range(len(K_val)))
-
-    print(f"Iter {iteration+1} | Max K diff: {max_diff:.6f}")
-    print(f"  Liquid fraction: {L_solution:.6f}")
     
-    K_val = new_K_values.copy()
-    L_initial_estimate = L_solution
+    new_K_values = np.array([phi_l[i] / phi_v[i] for i in range(len(phi_l))], dtype=float)
+    max_diff = np.max(np.abs((new_K_values - K_old) / K_old))
+
+    print(f"Iter {iteration+1} | Max K diff: {max_diff:.6e} | L = {L_solution:.6f}")
+
+    K_val = new_K_values
+
     if max_diff < TOL:
-        sum_x = sum(x)
-        sum_y = sum(y)
-        x_tol = abs(sum_x - 1) < 0.02
-        y_tol = abs(sum_y - 1) < 0.02
-        if x_tol and y_tol:
+        sum_x, sum_y = np.sum(x), np.sum(y)
+        if abs(sum_x - 1) < 0.02 and abs(sum_y - 1) < 0.02:
             print("\nConverged!")
-            print(f"Final Liquid fraction (L): {L_solution:.6f}")
-            print(f"Sum of x: {sum_x:.6f} | Sum of y: {sum_y:.6f}")
-            print("\nComponent   x           y           K")
             for i, name in enumerate(component_names):
-                print(f"{name:12} {x[i]:.6f}   {y[i]:.6f}   {new_K_values[i]:.6f}")
+                print(f"{name:12} x={x[i]:.6f}  y={y[i]:.6f}  K={K_val[i]:.6f}")
             break
-        
 else:
     print("\nDid not converge after maximum iteration")
 
